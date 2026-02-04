@@ -6,6 +6,7 @@ import json
 import click
 import requests
 import shutil
+import json_merge_patch
 
 from contextlib import suppress
 
@@ -13,12 +14,12 @@ from datetime import date
 from datetime import datetime
 
 
-def get_profile_base_url_from_profile_file():
+def get_property_from_profile_file(the_property):
     """
-    Returns the value of `base_url` from `./profile.json`
+    Returns the value of property from `./profile.json` if present.
     """
     with open('profile.json', 'r') as profile_file:
-        return json.load(profile_file)['base_url']
+        return json.load(profile_file)[the_property]
 
 def get_openapi_url_from_base_url(base_url):
     return f"{base_url}/schema/openapi.json"
@@ -194,28 +195,105 @@ def fetch_hsds_schemas(branch):
         cache_schemas(branch, schemas)
         return schemas
 
+def generate_schema_id_from_schema_name_url_and_version(schema_name, base_url, version):
+    """
+    Generates a schema $id from the schema's filename, the Profile's base_url, and the version of the Profile. https://json-schema.org/draft/2020-12/json-schema-core#name-the-id-keyword
 
-def generate_profile(branch, base_url):
+    It assumes that the resulting schemas will be stored at {base_url}/{version}/schema/{schema_name}.json
+
+    Important note: some popular source control systems are treated specially to give $id values which can resolve to the actual files. List of source control systems handled:
+
+    https://github.com/user/repo -> https://raw.githubusercontent.com/{version}/schema/{schema_name}
+    https://gitlab.com/user/repo -> https://gitlab.com/user/repo/-/raw/{version}/schema/{schema_name}
+    https://git.sr.ht/~user/repo_name -> https://git.sr.ht/~user/repo/blob/{version}/schema/{schema_name}
+    https://codeberg.org/user/repo -> https://codeberg.org/user/repo/raw/branch/{version}/schema/{schema_name}
+    """
+
+    # Can't guarantee that user has omitted a trailing / or not
+    base_url = base_url.strip('/')
+
+    # Github base urls: https://github.com/user/repo_name
+    # Need transforming to https://raw.githubusercontent.com/organization_name/repo_name/version/schema/schema_file.json
+
+    if base_url.startswith("https://github.com"):
+        return f"{base_url.replace('https://github.com', 'https://raw.githubusercontent.com')}/{version}/schema/{schema_name}"
+
+    # Gitlab base urls: https://gitlab.com/user/repo_name
+    # Target format: https://gitlab.com/organization_name/repo_name/-/raw/{version}/{schema_name}
+
+    if base_url.startswith("https://gitlab.com"):
+        return f"{base_url}/-/raw/{version}/{schema_name}"
+
+    # Sourcehut base urls https://git.sr.ht/~user/repo_name
+    # Target format: https://git.sr.ht/~user/repo/blob/{version}/schema/{schema_name}
+    if base_url.startswith("https://git.sr.ht"):
+        return f"{base_url}/blob/{version}/schema/{schema_name}"
+
+    # Codeberg base urls: https://codeberg.org/user/repo
+    # Target format: https://codeberg.org/user/repo/raw/branch/{version}/schema/{schema_name}
+    if base_url.startswith("https://codeberg.org"):
+        return f"{base_url}/raw/branch/{version}/{schema_name}"
+
+    return f"{base_url}/{version}/schema/{schema_name}"
+
+
+def get_profile_schemas(hsds_base_schemas, profile_source_schemas):
+    """
+    Generates a dict of profile schemas which is the result of performing a JSON Merge Patch on the base HSDS Schemas and the profile source schemas.
+
+    For schemas which only appear in either set, these schemas are copied.
+
+    Parameters:
+        * hsds_base_schemas (dict): mapping of schema filename to schema dict e.g. {'example.json': {}}
+        * profile_source_schemas (dict): mapping of schema filename to schema dict e.g. {'example.json': {}}
+    """
+
+    # Profiles in HSDS have the following abilities: https://docs.openreferral.org/en/latest/hsds/profiles.html
+      # - leave any given HSDS Schema intact
+      # - patch any given HSDS schema, including removing it, based on filename
+      # - add new schemas which aren't present in the original HSDS Schemas
+
+    # Therefore we have to handle the following:
+      # - schemas which only appear in the hsds_base_schemas dict (they might not have been overridden in the Profile)
+      # - schemas which only appear in the profile_source_schemas dict (they might be entirely new schemas)
+      # - schemas which appear in both dicts, meaning they need patching via https://tools.ietf.org/html/rfc7386 (provided by the json_merge_patch library)
+
+    # Generate a dict based on XOR of keys across both dicts
+
+    profile_schemas = {
+            **{k: v for k,v in hsds_base_schemas if k not in profile_source_schemas},
+            **{k: v for k,v in profile_source_schemas if k not in hsds_base_schemas}
+            }
+
+    # Get a list which is the intersection of the two keys (i.e. which schemas are in both dicts)
+    schemas_to_patch = [k in hsds_base_schemas.keys() if k in profile_source_schemas]
+
+    # Patch all the schemas which need patching by using the intersection as a set of keys
+    profile_schemas.update(dict(map(lambda x : {x: json_merge_patch.merge(hsds_base_schemas[x], profile_source_schemas[x])}, schemas_to_patch)))
+
+    # TODO: TEST this!
+    # TODO: for each entry in the profile_schemas, replace the $id with the exception of openapi.json
+
+
+def generate_profile(branch, base_url, version):
     """
     Generates a Profile by using patching the HSDS schemas with new schemas and patches defined in the `profile` directory.
 
     Parameters:
         * branch (str): the branch of the HSDS Schemas to use as a base for the Profile
         * base_url (str): the base_url of the profile to use as the $ids for schemas, etc.
+        * version (str): the version of the profile to use in $ids for schemas etc.
     """
 
+    #TODO move most of this logic into the get_profile_schemas function
+
     hsds_schemas = fetch_hsds_schemas(branch)
-    profile_schemas = fetch_schemas_from_directory('profile')
+    profile_source_schemas = fetch_schemas_from_directory('profile')
 
-    # Profiles have the following abilities:
-      # - leave any given HSDS Schema intact
-      # - patch any given HSDS schema, including removing it, based on filename
-      # - add new schemas which aren't present in the original HSDS Schemas
-
-    # Therefore we need to handle these cases efficiently. As best I can tell, it should be OK  to generate three lists of filenames: the intersection of the two (needs patching), only in the hsds_schemas (needs copying with a new $id), and only in the profile schemas (needs copying with a new $id).
+        # Therefore we need to handle these cases efficiently. As best I can tell, it should be OK  to generate three lists of filenames: the intersection of the two (schemas which need patching), only in the hsds_schemas (needs copying with a new $id), and only in the profile schemas (needs copying with a new $id).
 
     hsds_schema_filenames = [item['filename'] for item in hsds_schemas]
-    profile_schema_filenames = [item['filename'] for item in profile_schemas]
+    profile_schema_filenames = [item['filename'] for item in profile_source_schemas]
     
     filenames = {
             'intersection': [item for item in hsds_schema_filenames if item in profile_schema_filenames],
@@ -223,19 +301,27 @@ def generate_profile(branch, base_url):
             'profile_only': [item for item in profile_schema_filenames if item not in hsds_schema_filenames]
             }
 
-    print(json.dumps(filenames))
+    
+    # Easy to get a list of schemas we don't need to patch.
 
-    # Loop over the HSDS Schemas.
-      # if there is a patch in the profile directory, perform the merge-patch
-      # generate the $id from the base_url and apply it to the $id field (Note: might need a special case to handle openapi.json)
-      # put it in the `schema` directory
-      # remove its patch from the list of Profile schemas
+    profile_schemas = [item for item in hsds_schemas if item['filename'] in filenames['hsds_only']] + [item for item in profile_source_schemas if item['filename'] in filenames['profile_only']]
+    
+    # What we have now:
+    # two lists that look like this: [{'filename': example.json, 'schema': {}}]
+    # A list of filenames that represent an intersection e.g. 'example.json'
+    # I need to: extract the schemas from each array where the value of the filename key is 'example.json', and merge the value of each 'schema' key together to produce a patched schema
 
-    # Loop over the remaining Profile schemas
-      # These can simply be put into the `schema` directory
-      # Might be good practice to set override the $id fields though!
+    # Use list comprehension to flatten it, so I get a dict of {'example.json': schema
+    # Map over the filenames as a key
 
-    # Compile schemas
+    # We want a whole pile of profile schemas with new $ids
+
+
+    # The one exception being `openapi.json`, which doesn't get an ID due to its format not requiring it.
+    # However, we *do* need to take the patched `openapi.json` and then manually update all the $refs to point to our compiled schema versions if they match the old patterns.
+
+
+     # Compile schemas
       # Check for the presence of compilations.json
       # Get contents if present, else get a default list of compilations
       # for each compilation, check to see if there's a corresponding file.
@@ -329,9 +415,14 @@ def init(title, url, description, docs_url):
 @click.option(
     "--url",
     default=None,
-    help="The Base URL of the Profile. Provide this if you don't want to use the URL provided in profile.json. If not provided, the program will look for the `base_url` value inside of profile.json inside this directory.",
+    help="The Base URL of the Profile. Provide this to override the `base_url` property inside of profile.json",
 )
-def generate(branch, url):
+@click.option(
+    "--version",
+    default=None,
+    help="The version of the Profile you're generating. Provide this to override the `version` property inside of profile.json",
+)
+def generate(branch, url, version):
     """
     Generates and compiles Profile Schemas based on HSDS Schemas and the Patches in the `profile` directory.
     """
@@ -340,14 +431,17 @@ def generate(branch, url):
         branch = get_default_hsds_schema_branch()
 
     if url is None:
-        url = get_profile_base_url_from_profile_file()
+        url = get_property_from_profile_file("base_url")
+
+    if version is None:
+        version = get_property_from_profile_file("version")
 
     #TODO inform user that tasks are done
 
 @cli.command()
 def test():
 
-    generate_profile("3.0","https://mrshll.uk")
+    generate_profile("3.0","https://mrshll.uk", "0.0.1")
 
 
 # ==================================
