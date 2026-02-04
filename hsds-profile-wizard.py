@@ -3,10 +3,13 @@
 import os
 import sys
 import json
+import jsonref
 import click
 import requests
 import shutil
 import json_merge_patch
+
+from pathlib import Path
 
 from compiletojsonschema.compiletojsonschema import CompileToJsonSchema
 
@@ -14,6 +17,24 @@ from contextlib import suppress
 
 from datetime import date
 from datetime import datetime
+
+
+def get_default_list_of_schemas_to_compile():
+    """
+    Returns a list containing: ["service.json", "organization.json", "location.json", "service_at_location.json"]
+
+    This represents the "core objects" of HSDS, so should be a sensible default for a list of schemas to compile. See https://docs.openreferral.org/en/latest/hsds/schema_reference.html#core-objects
+
+    Returns:
+     * list: list of strings representing the schema names of the HSDS Core objects.
+    """
+
+    return [
+        "service.json",
+        "organization.json",
+        "location.json",
+        "service_at_location.json",
+    ]
 
 
 def get_list_of_schemas_to_compile(profile_metadata):
@@ -42,12 +63,7 @@ def get_list_of_schemas_to_compile(profile_metadata):
             return profile_metadata["compile"]
     else:
 
-        return [
-            "service.json",
-            "organization.json",
-            "location.json",
-            "service_at_location.json",
-        ]
+        return get_default_list_of_schemas_to_compile()
 
 
 def get_profile_metadata():
@@ -59,6 +75,7 @@ def get_profile_metadata():
     """
     with open("profile.json", "r") as profile_file:
         return json.load(profile_file)
+
 
 def get_openapi_url_from_base_url(base_url):
     return f"{base_url}/schema/openapi.json"
@@ -152,14 +169,20 @@ def write_dict_of_schemas_to_directory(schemas, directory):
 
 def cache_schemas(branch, schemas):
     """
-    Stores copies of the schemas in a local cache organised by branch and updates the cache metadata.json with the timestamp this branch was updated.
+        Stores copies of the schemas in a local cache organised by branch and updates the cache metadata.json with the timestamp this branch was updated.
+    ault_list_of_schemas_to_compile()
+                "service.json",
+                "organization.json",
+                "location.json",
+                "service_at_location.json",
+            ]
 
-    Parameters:
-        branch (str): the branch of the repo
-        schemas (dict): a dict of filenames=>schemas to write to the cache
+        Parameters:
+            branch (str): the branch of the repo
+            schemas (dict): a dict of filenames=>schemas to write to the cache
 
-    I/O:
-      * writes schemas to the cache directory via write_dict_of_schemas_to_directory()
+        I/O:
+          * writes schemas to the cache directory via write_dict_of_schemas_to_directory()
     """
 
     cache_dir_for_branch = get_cached_schema_dir_path_from_branch(branch)
@@ -285,6 +308,106 @@ def generate_schema_id_from_schema_name_url_and_version(schema_name, base_url, v
     return f"{base_url}/{version}/schema/{schema_name}"
 
 
+def generate_profile_openapi_with_cleaned_refs(openapi_definition, profile_schemas):
+    """
+    Processes the openapi.json "schema" dict to replace all references to vanilla HSDS Schemas.
+
+    Parameters:
+
+        * openapi_definition: dict representing the patched openapi.json schema for the user's profile
+        * profile_schemas: dict containing all the other patched profile schemas, used as a lookup to retrieve $ids to use as values for $ref
+
+    Exceptions:
+        * When encountering a KeyError due to the lack of a profile schema with the same schema name as the $ref it's trying to replace, it will print a message to STDERR and then continue.
+
+    Returns:
+      * dict: the openapi.json file
+    """
+    # The API paths defined in the openapi.json file currently all point to the HSDS Schema files as a value of their $ref keys, so these need updating to the Profile's urls.
+    # In some cases, these need updating to the "compiled" schema identifier, and in others just the base schema. There doesn't appear to be a specific reason for this named in any of the HSDS docs, so we just have to inspect the $ref and if it contains "compiled" then it should use the compiled schema.
+    # Further, we have to check whether the definition of the response is a page or not, because that will affect where the $ref key lives.
+    # There is also a risk here that the profile author has removed a schema from the profile, but not updated the openapi.json file to remove endpoints matching this. In these cases, raise an error message telling the user to update openapi.json
+    # Personal note: writing this function nearly made me cry. It's so horrible having to manage the ridiculous tree of the openapi.json file, and then realise how haphazard and opaque the design decisions were.
+
+    for k in openapi_definition["paths"].keys():
+        # $refs can exist for each method
+        for method in ["get", "post"]:
+            try:
+                if method in openapi_definition["paths"][k]:
+                    if (
+                        "$ref"
+                        in openapi_definition["paths"][k][method]["responses"]["200"][
+                            "content"
+                        ]["application/json"]["schema"]
+                    ):
+                        ref_value = openapi_definition["paths"][k][method]["responses"][
+                            "200"
+                        ]["content"]["application/json"]["schema"]["$ref"]
+                        schema_base_name_from_ref_value = Path(ref_value).name
+
+                        if "compiled" in ref_value:
+                            openapi_definition["paths"][k][method]["responses"]["200"][
+                                "content"
+                            ]["application/json"]["schema"][
+                                "$ref"
+                            ] = generate_compiled_schema_id_from_schema_id(
+                                profile_schemas[schema_base_name_from_ref_value]["$id"]
+                            )
+                        else:
+                            openapi_definition["paths"][k][method]["responses"]["200"][
+                                "content"
+                            ]["application/json"]["schema"]["$ref"] = profile_schemas[
+                                schema_base_name_from_ref_value
+                            ][
+                                "$id"
+                            ]
+                    elif (
+                        "contents"
+                        in openapi_definition["paths"][k][method]["responses"]["200"][
+                            "content"
+                        ]["application/json"]["schema"]["properties"]
+                    ):
+                        ref_value = openapi_definition["paths"][k][method]["responses"][
+                            "200"
+                        ]["content"]["application/json"]["schema"]["properties"][
+                            "contents"
+                        ][
+                            "items"
+                        ][
+                            "$ref"
+                        ]
+                        schema_base_name_from_ref_value = Path(ref_value).name
+                        if "compiled" in ref_value:
+                            openapi_definition["paths"][k][method]["responses"]["200"][
+                                "content"
+                            ]["application/json"]["schema"]["properties"]["content"][
+                                "items"
+                            ][
+                                "$ref"
+                            ] = generate_compiled_schema_id_from_schema_id(
+                                profile_schemas[schema_base_name_from_ref_value]["$id"]
+                            )
+                        else:
+                            openapi_definition["paths"][k][method]["responses"]["200"][
+                                "content"
+                            ]["application/json"]["schema"]["properties"]["contents"][
+                                "items"
+                            ][
+                                "$ref"
+                            ] = profile_schemas[
+                                schema_base_name_from_ref_value
+                            ][
+                                "$id"
+                            ]
+
+            except KeyError as e:
+                sys.stderr.write(
+                    f"Error when generating openapi.json file: path {k} references schema {e} which does not appear in your Profile. Consider patching this path via profile/openapi.json\n"
+                )
+
+    return openapi_definition
+
+
 def generate_profile_schemas(
     hsds_base_schemas, profile_source_schemas, base_url, profile_version
 ):
@@ -366,16 +489,19 @@ def generate_profile_schemas(
                 )
             )
 
-
-    # TODO: we need to do some processing on openapi.json, it's debatable whether this should be done here or later, because it involves setting the URLs to point to the compiled schemas.
+    # TODO process openapi.json here
+    profile_schemas["openapi.json"] = generate_profile_openapi_with_cleaned_refs(
+        profile_schemas["openapi.json"], profile_schemas
+    )
 
     return profile_schemas
+
 
 def generate_compiled_schema_id_from_schema_id(schema_id):
     """
     Generates a compiled schema's $id value given the value of an existing $id
 
-    Currently, this amounts to whacking "/compiled/" between the head of the uri and the tail
+    Currently, this amounts to replacing "schema" with "schema/compiled" between the head of the uri and the tail
 
     Parameters:
       * schema_id (str) the schema $id from which to generate the compiled schema id e.g. https://example.org/0.0.1/schema/example.json
@@ -384,25 +510,56 @@ def generate_compiled_schema_id_from_schema_id(schema_id):
       * str: the $id value of the compiled schema
     """
 
-    # TODO finish this
-    path = os.path.split(schema_id)
-
-    return
+    return schema_id.replace("schema", "schema/compiled")
 
 
 def generate_compiled_schema(schema_name):
     """
     Generates a compiled (de-referenced) schema based on an input file name, and outputs it as a dict.
+
+    I/O:
+      * Reads a schema file from `schema/{schema_name}`, this is due to the CompileToJsonSchema library requiring a filepath. This will also result in it reading other schema files and performing HTTP requests based on any $ref values present in the source schema. See https://github.com/OpenDataServices/compile-to-json-schema.
+
+    Exceptions:
+      * Will print to STDERR and exit with a non-zero exit code if it cannot compile a schema. This is usually due to a missing file in /schema.
+
+    Returns:
+      * dict: a dict representing the compiled schema
     """
-    
-    compiler = CompileToJsonSchema(input_filename=f"schema/{schema_name}")
-    compiled_schema = compiler.get()
 
-    # The compiled schema currently has the $id of the original schema, so we need to modify it to play nicely with openapi.json and the directory structure of how HSDS schemas/profiles work
+    try:
 
-    compiled_schema["$id"] = 
+        compiler = CompileToJsonSchema(input_filename=f"schema/{schema_name}")
+        compiled_schema = compiler.get()
 
-    return compiler.get()
+        # The compiled schema currently has the $id of the original schema, so we need to modify it to play nicely with openapi.json and the directory structure of how HSDS schemas/profiles work
+
+        compiled_schema["$id"] = generate_compiled_schema_id_from_schema_id(
+            compiled_schema["$id"]
+        )
+
+        return compiled_schema
+    except FileNotFoundError:
+        # This is most likely to occur when the user has excluded one of the default HSDS Schemas from their Profile, but is still trying to use the default list of schemas to compile.
+        sys.stderr.write(
+            f"Error: could not generate compiled schema from {schema_name}. This usually occurs when you are trying to compile a schema which doesn't exist in your Profile. You should either re-add the schema to your Profile, or manually set which schemas to compile via profile.json"
+        )
+        sys.exit(1)
+    except jsonref.JsonRefError as e:
+        # This is most likely to occur due to a schema being excluded from the Profile, but then being involved in a compilation step via a $ref in the schema being compiled now.
+        # It's a good idea to inform the user of this, so they can take the necessary steps.
+        # The challenge is unpicking which schema has caused the error as that requires parsing the error message from the exception.
+
+        # The format of the error message is:
+        # Error while resolving `file:///home/matt/workspace/repos/opref/hsds-profile-wizard/schema/service_at_location.json`: URLError: <urlopen error [Errno 2] No such file or directory: '/home/matt/workspace/repos/opref/hsds-profile-wizard/schema/service_at_location.json'>(.ve) matt@hausos:~/workspace/repos/opref/hsds-profile-wizard$
+
+        # TODO parse out the filepath which has caused the error, and then build a nicer error message for the user to tell them which schema is missing and what to do.
+
+        sys.stderr.write(
+            f"Error while generating a compiled schema from /schema/{schema_name}. Could not resolve a $ref resulting from compiling this schema. It's likely that you have removed a schema which this schema refers to, so you should create /profile/{schema_name} to patch this schema and remove the $ref"
+        )
+        sys.exit(1)
+
 
 # ==================================
 # CLI
@@ -451,6 +608,7 @@ def init(title, url, description, docs_url):
         "base_url": url,
         "openapi_url": get_openapi_url_from_base_url(url),
         "version": "0.0",
+        "compile": get_default_list_of_schemas_to_compile(),
     }
 
     profile_meta["description"] = "" if description is None else description
@@ -540,7 +698,6 @@ def generate(branch, url, version):
     os.mkdir("schema/compiled")
 
     write_dict_of_schemas_to_directory(compiled_schemas, "schema/compiled")
-
 
 
 @cli.command()
