@@ -699,22 +699,12 @@ def generate(branch, url, version):
 
     write_dict_of_schemas_to_directory(compiled_schemas, "schema/compiled")
 
-
 @cli.command()
-def test():
+def gitignore():
+    """Outputs some content to STDOUT which you can append to a .gitignore file"""
 
-    get_profile_schemas(
-        fetch_hsds_schemas("3.2"), fetch_schemas_from_directory("profile")
-    )
-
-    # print(
-    #     json.dumps(
-    #         get_profile_schemas(
-    #             fetch_hsds_schemas(get_default_hsds_schema_branch()),
-    #             fetch_schemas_from_directory("profile"),
-    #         )
-    #     )
-    # )
+    git_ignore = ".cache"
+    print(git_ignore)
 
 
 # ==================================
