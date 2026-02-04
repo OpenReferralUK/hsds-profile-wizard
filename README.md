@@ -17,16 +17,16 @@ A Python-based CLI tool which makes it straightforward to create and manage your
 
 ```bash
 # Answer prompts to generate the profile.json file describing your profile. You can also pass them in as CLI flags e.g. --title --url --description --docs-url
-hsds-schema-wizard init
+hsds-profile-wizard init
 
 # Generate and compile your patched Profile schemas based on the default branch of HSDS
-hsds-schema-wizard generate 
+hsds-profile-wizard generate 
 
 # Generate and compile your patched Profile Schemas based on a specific branch of HSDS
-hsds-schema-wizard generate --branch "3.0"
+hsds-profile-wizard generate --branch "3.0"
 
 # You can also pass in flags to override the default settings in your profile.json
-hsds-schema-wizard generate --branch "3.0" --version "0.2" --url "https://not-my-default-profile-url.org"
+hsds-profile-wizard generate --branch "3.0" --version "0.2" --url "https://not-my-default-profile-url.org"
 ```
 
 ### Basic Usage
