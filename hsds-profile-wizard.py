@@ -374,14 +374,14 @@ def generate_schema_id_from_schema_name_url_and_version(schema_name, base_url, v
 
 def generate_profile_openapi_with_cleaned_refs(openapi_definition, profile_schemas):
     """
-    Processes the openapi.json "schema" dict to replace all references to vanilla HSDS Schemas.
+    Processes the openapi.json dict to replace all references to vanilla HSDS Schemas with URIs pointing to Profile schemas.
 
     Parameters:
       * openapi_definition: dict representing the patched openapi.json schema for the user's profile
       * profile_schemas: dict containing all the other patched profile schemas, used as a lookup to retrieve $ids to use as values for $ref
 
     Exceptions:
-      * When encountering a KeyError due to the lack of a profile schema with the same schema name as the $ref it's trying to replace, it will print a message to STDERR and then continue.
+      * KeyError: When encountering a KeyError due to the lack of a profile schema with the same schema name as the $ref it's trying to replace, it will print a message to STDERR and then continue.
 
     Returns:
       * dict: the openapi.json file
@@ -464,9 +464,10 @@ def generate_profile_openapi_with_cleaned_refs(openapi_definition, profile_schem
                             ]
 
             except KeyError as e:
+                # I don't like how this integrates click's printing framework tightly into the core logic of the program. I may revert this to use sys.stderr.write, or refactor it to raise the exception and push the error message to the I/O boundary of the program i.e. in the "generate" command.
                 click.echo(
                     f"Error when generating openapi.json file: path {k} references schema {e} which does not appear in your Profile. Consider patching this path via profile/openapi.json",
-                    err=True
+                    err=True,
                 )
 
     return openapi_definition
@@ -592,7 +593,8 @@ def generate_compiled_schema(schema_name):
       * Reads a schema file from `schema/{schema_name}`, this is due to the CompileToJsonSchema library requiring a filepath. This will also result in it reading other schema files and performing HTTP requests based on any $ref values present in the source schema. See https://github.com/OpenDataServices/compile-to-json-schema.
 
     Exceptions:
-      * Will print to STDERR and exit with a non-zero exit code if it cannot compile a schema. This is usually due to a missing file in /schema.
+      * FileNotFoundError: occurs if the compiler is given the path to a non-existant schemafile to compile. Most likely due to a schema being removed entirely from a Profile but not removing it from the list of schemas to compile in profile.json
+      * jsonref.JsonRefError: occurs if the compiler fails to resolve a $ref key inside a schema file it's compiling. Most likely due to a schema file being removed entirely from a Profile, but the Profile author neglecting to patch out $refs to it in other schemas.
 
     Returns:
       * dict: a dict representing the compiled schema
@@ -612,24 +614,15 @@ def generate_compiled_schema(schema_name):
         return compiled_schema
     except FileNotFoundError:
         # This is most likely to occur when the user has excluded one of the default HSDS Schemas from their Profile, but is still trying to use the default list of schemas to compile.
-        sys.stderr.write(
+        raise FileNotFoundError(
             f"Error: could not generate compiled schema from {schema_name}. This usually occurs when you are trying to compile a schema which doesn't exist in your Profile. You should either re-add the schema to your Profile, or manually set which schemas to compile via profile.json"
         )
-        sys.exit(1)
     except jsonref.JsonRefError as e:
         # This is most likely to occur due to a schema being excluded from the Profile, but then being involved in a compilation step via a $ref in the schema being compiled now.
-        # It's a good idea to inform the user of this, so they can take the necessary steps.
-        # The challenge is unpicking which schema has caused the error as that requires parsing the error message from the exception.
-
-        # The format of the error message is:
-        # Error while resolving `file:///home/matt/workspace/repos/opref/hsds-profile-wizard/schema/service_at_location.json`: URLError: <urlopen error [Errno 2] No such file or directory: '/home/matt/workspace/repos/opref/hsds-profile-wizard/schema/service_at_location.json'>(.ve) matt@hausos:~/workspace/repos/opref/hsds-profile-wizard$
-
-        # TODO parse out the filepath which has caused the error, and then build a nicer error message for the user to tell them which schema is missing and what to do.
-
-        sys.stderr.write(
-            f"Error while generating a compiled schema from /schema/{schema_name}. Could not resolve a $ref resulting from compiling this schema. It's likely that you have removed a schema which this schema refers to, so you should create /profile/{schema_name} to patch this schema and remove the $ref"
+        raise jsonref.JsonRefError(
+            f"Error while generating a compiled schema from /schema/{schema_name}. Could not resolve a $ref to {e.reference['$ref']} when compiling this schema. It's likely that you have removed {e.reference['$ref']} from your profile, so you should create /profile/{schema_name} to patch this schema and remove any references to {e.reference['$ref']} ",
+            e.reference,
         )
-        sys.exit(1)
 
 
 # ==================================
@@ -689,7 +682,9 @@ def init(title, url, description, docs_url):
     with open("profile.json", "w") as profile_file:
         profile_file.write(json.dumps(profile_meta, indent=2))
 
-    click.echo("✓ Created profile.json based on user input — edit this file to maintain your profile's metadata between versions and control how schemas compile")
+    click.echo(
+        "✓ Created profile.json based on user input — edit this file to maintain your profile's metadata between versions and control how schemas compile"
+    )
 
     with suppress(FileExistsError):
         os.mkdir("profile")
@@ -755,6 +750,10 @@ def generate(branch, url, version):
         version,
     )
 
+    # The compiletojsonschema library requires a file as input, so we need to write out the contents of profile_schemas now before compiling.
+    # This needs to be done anyway, but it's a little messy to have I/O in the middle of a chain of processing if we're not in a UNIX pipe imho.
+    # Unfortunately, this is easier than re-implementing the logic to compile a schema.
+
     # It's better to tidy up from previous runs, so remove the entire "schema" directory and rebuild it ready for writing
     with suppress(FileNotFoundError):
         shutil.rmtree("schema")
@@ -765,13 +764,21 @@ def generate(branch, url, version):
 
     names_of_schemas_to_compile = get_list_of_schemas_to_compile(profile_metadata)
 
-    compiled_schemas = {}
-    for name in names_of_schemas_to_compile:
-        compiled_schemas[name] = generate_compiled_schema(name)
+    try:
 
-    os.mkdir("schema/compiled")
+        compiled_schemas = {}
+        for name in names_of_schemas_to_compile:
+            compiled_schemas[name] = generate_compiled_schema(name)
 
-    write_dict_of_schemas_to_directory(compiled_schemas, "schema/compiled")
+        os.mkdir("schema/compiled")
+
+        write_dict_of_schemas_to_directory(compiled_schemas, "schema/compiled")
+    except FileNotFoundError as e:
+        click.echo(e, err=True)
+        sys.exit(1)
+    except jsonref.JsonRefError as e:
+        click.echo(e, err=True)
+        sys.exit(1)
 
 
 @cli.command()
