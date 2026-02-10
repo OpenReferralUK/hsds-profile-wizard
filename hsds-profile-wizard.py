@@ -380,7 +380,7 @@ def generate_profile_openapi_with_cleaned_refs(openapi_definition, profile_schem
                         if "compiled" in ref_value:
                             openapi_definition["paths"][k][method]["responses"]["200"][
                                 "content"
-                            ]["application/json"]["schema"]["properties"]["content"][
+                            ]["application/json"]["schema"]["properties"]["contents"][
                                 "items"
                             ][
                                 "$ref"
