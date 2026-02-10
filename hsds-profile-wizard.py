@@ -47,8 +47,11 @@ def get_list_of_schemas_to_compile(profile_metadata):
     * If present, it returns the list of schemas declared in profile_metadata["compile"], even if empty
     * Else, it returns a list of: "service.json", "organization.json", "location.json", and "service_at_location.json".
 
-        Returns:
-        list: list of strings representing schema filenames to compile e.g. "service.json"
+    Parameters:
+      * profile_metadata (dict): the metadata of the profile, usually read in from profile.json elsewhere
+
+    Returns:
+      * list: list of strings representing schema filenames to compile e.g. "service.json"
     """
 
     # In HSDS, the canonical schemas are compiled underneath the "schema/compiled" directory, and the openapi.json file uses the compiled schemas as the definitions of the return schemas for API endpoints. Profiles should also follow this pattern (although they have the ability to explicitly override it)
@@ -78,6 +81,15 @@ def get_profile_metadata():
 
 
 def get_openapi_url_from_base_url(base_url):
+    """
+    Given a base_url for a profile, returns a URL which should resolve to that PRofile's openapi.json file if deployed
+
+    Parameters:
+      * base_url: string (uri), the base_url for the profile. Usually taken from profile.json.
+
+    Returns:
+      * string: a string representing the location of the Open API URL for the profile.
+    """
     return f"{base_url}/schema/openapi.json"
 
 
@@ -95,6 +107,12 @@ def get_cache_directory_path_as_string():
 def get_default_hsds_schema_branch():
     """
     Queries the Github API for the HSDS Repo's information, and returns the default branch as a string
+
+    I/O:
+      * Makes a http request to query the Github API for a default branch name.
+
+    Returns:
+      * string: the default branch of the HSDS repository e.g. "3.2"
     """
 
     url = "https://api.github.com/repos/openreferral/specification"
@@ -105,6 +123,9 @@ def get_default_hsds_schema_branch():
 def fetch_schemas_from_github(branch):
     """
     Retrieves the HSDS schemas from Github and returns them as dicts
+
+    I/O:
+      * makes http requests to github to retrieve HSDS schema files
 
     Parameters:
         branch (str): Which branch of the HSDS Schemas to use.
@@ -131,6 +152,9 @@ def fetch_schemas_from_github(branch):
 def get_cache_metadata_filepath():
     """
     Returns the location of the cache's metadata.json file as a string
+
+    Return:
+      * str: the filepath to the cache's metadata.json file
     """
 
     return f"{get_cache_directory_path_as_string()}/metadata.json"
@@ -141,7 +165,7 @@ def get_cache_metadata():
     Returns the cache's metadata.json file as a dict
 
     Returns:
-        dict - resulting from json.loads on the metadata file
+      * dict - resulting from json.loads on the metadata file
     """
 
     with open(get_cache_metadata_filepath(), "r") as cache_metadata_file:
@@ -156,6 +180,12 @@ def get_cache_metadata():
 def write_cache_metadata(metadata):
     """
     Writes the cache metadata to the cache's metadata.json file
+
+    Parameters:
+      * metadata (dict): the dict representing the current cache's metadata
+
+    I/O:
+      * Writes the metadata dict to a JSON file stored in {cache_directory}/metadata.json
     """
     with open(get_cache_metadata_filepath(), "w") as cache_metadata_file:
         cache_metadata_file.write(json.dumps(metadata))
@@ -215,6 +245,9 @@ def get_cached_schema_dir_path_from_branch(branch):
     """
     Returns the path for the directory where the cached schemas are for the given branch
 
+    Parameters:
+      * branch (str): the branch name of the set of schemas to retrieve e.g. "3.2"
+
     Return:
         str: the path of the directory where the cached schemas would be for the given branch
     """
@@ -225,6 +258,9 @@ def get_cached_schema_dir_path_from_branch(branch):
 def use_cached_schemas(branch):
     """
     Looks at the cache's metadata.json entry for the branch and decided whether to use the cached schemas or not based on the current time. If no entry is present, it defaults to returning False
+
+    Parameters:
+      * branch (str): the branch for which to check for cached schemas
 
     Return:
       bool: whether to use the cached schemas for that branch or not.
@@ -250,9 +286,15 @@ def use_cached_schemas(branch):
 
 def fetch_schemas_from_directory(directory):
     """
-    Fetches Schemas from a local directory and returns a list of maps from filename to schemas
+    Fetches Schemas from a local directory and returns a list of maps from filename to schemas. Only files ending with ".json" are fetched.
 
     Ignores subdirectories, only returns files.
+
+    Parameters:
+      * directory (str): the directory to scan for JSON files
+
+    I/O:
+      * Reads files from the directory parameter
 
     Returns:
         * schemas (dict): dicts mapping filenames to schemas
@@ -272,6 +314,9 @@ def fetch_schemas_from_directory(directory):
 def fetch_hsds_schemas(branch):
     """
     Returns a dict mapping filenames to HSDS schemas. Makes a decision about whether to use the cache or fetch fresh schemas.
+
+    Parameters:
+      * branch (str): which branch of the HSDS schemas to fetch e.g. "3.2"
 
     Return:
         * schemas (dict): list of dicts mapping filenames to schemas loaded into memory as dicts
@@ -299,6 +344,14 @@ def generate_schema_id_from_schema_name_url_and_version(schema_name, base_url, v
     https://gitlab.com/user/repo -> https://gitlab.com/user/repo/-/raw/{version}/schema/{schema_name}
     https://git.sr.ht/~user/repo_name -> https://git.sr.ht/~user/repo/blob/{version}/schema/{schema_name}
     https://codeberg.org/user/repo -> https://codeberg.org/user/repo/raw/branch/{version}/schema/{schema_name}
+
+    Parameters:
+      * schema_name (str): the name of the schema file e.g. "service.json"
+      * base_url (str): the base URL for the profile e.g. https://example.org
+      * version (str): the version string for the Profile e.g. 0.1, 2020-12, etc.
+
+    Returns:
+      * str: the $id string to a Profile schema based on the provided schema name, base url, and version
     """
 
     # Can't guarantee that user has omitted a trailing / or not
@@ -324,12 +377,11 @@ def generate_profile_openapi_with_cleaned_refs(openapi_definition, profile_schem
     Processes the openapi.json "schema" dict to replace all references to vanilla HSDS Schemas.
 
     Parameters:
-
-        * openapi_definition: dict representing the patched openapi.json schema for the user's profile
-        * profile_schemas: dict containing all the other patched profile schemas, used as a lookup to retrieve $ids to use as values for $ref
+      * openapi_definition: dict representing the patched openapi.json schema for the user's profile
+      * profile_schemas: dict containing all the other patched profile schemas, used as a lookup to retrieve $ids to use as values for $ref
 
     Exceptions:
-        * When encountering a KeyError due to the lack of a profile schema with the same schema name as the $ref it's trying to replace, it will print a message to STDERR and then continue.
+      * When encountering a KeyError due to the lack of a profile schema with the same schema name as the $ref it's trying to replace, it will print a message to STDERR and then continue.
 
     Returns:
       * dict: the openapi.json file
@@ -425,9 +477,10 @@ def generate_profile_schemas(
     """
     Generates a dict of profile schemas which is the result of the following process:
 
-    1. copying schemas which only appear in either the hsds_base_schemas or the profile_source_schemas (XOR)
-    2. patching schemas which appear in both the hsds_base_schemas and the profile_source_schemas (AND) according to JSON Merge Patch
-    3. Overriding the $id values of each resultant schema with a new one generated from base_url and profile_version along with the name of the schema, excepting in the case of `openapi.json`
+    1. copying schemas which only appear in either the hsds_base_schemas or the profile_source_schemas (Symmetric Difference)
+    2. patching schemas which appear in both the hsds_base_schemas and the profile_source_schemas (Intersection) according to JSON Merge Patch
+    3. Overriding the $id values of each resultant schema with a new one generated from base_url and profile_version along with the name of the schema
+    4. Processing `openapi.json` to replace $refs to schemas with ones pointing to the Profile's $ids
 
     Parameters:
         * hsds_base_schemas (dict): mapping of schema filename to schema dict e.g. {'example.json': {}}
@@ -436,7 +489,7 @@ def generate_profile_schemas(
         * profile_version: the version of the profile, used to set the $id properties of schemas
 
     Returns:
-        * dict: mapping of schema filenames to schema dict e.g {'example.json': {…}}, representing all the schemas present in the profile, with appropriate $id values
+        * dict: mapping of schema filenames to schema dict e.g {'example.json': {…}}, representing all the schemas present in the profile, fully patched, with new $id values.
     """
 
     # Profiles in HSDS have the following abilities: https://docs.openreferral.org/en/latest/hsds/profiles.html
@@ -449,7 +502,7 @@ def generate_profile_schemas(
     # - schemas which only appear in the profile_source_schemas dict (they might be entirely new schemas)
     # - schemas which appear in both dicts, meaning they need patching via https://tools.ietf.org/html/rfc7386 (provided by the json_merge_patch library)
 
-    # Generate a dict based on XOR of keys across both dicts
+    # For the schemas we don't need to patch, we can get the Symmetric Difference of keys via combining the results of the set difference from each the hsds_base_schemas and the profile_source_schemas
 
     profile_schemas = {
         **{
@@ -464,7 +517,7 @@ def generate_profile_schemas(
         },
     }
 
-    # Get a list which is the intersection of the two keys (i.e. which schemas are in both dicts) and then use this to create a set of patched schemas to add to profile_schemas
+    # The schemas we need to patch can be represented by the intersection of keys between hsds_base_schemas and profile_source_schemas.
     # TODO: this could be made more efficient by refactoring to a map function
 
     schemas_to_patch = [
@@ -530,6 +583,9 @@ def generate_compiled_schema_id_from_schema_id(schema_id):
 def generate_compiled_schema(schema_name):
     """
     Generates a compiled (de-referenced) schema based on an input file name, and outputs it as a dict.
+
+    Parameters:
+      * schema_name (str): the name of the schema to read from the schema directory e.g. service.json
 
     I/O:
       * Reads a schema file from `schema/{schema_name}`, this is due to the CompileToJsonSchema library requiring a filepath. This will also result in it reading other schema files and performing HTTP requests based on any $ref values present in the source schema. See https://github.com/OpenDataServices/compile-to-json-schema.
