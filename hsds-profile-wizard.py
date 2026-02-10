@@ -464,8 +464,9 @@ def generate_profile_openapi_with_cleaned_refs(openapi_definition, profile_schem
                             ]
 
             except KeyError as e:
-                sys.stderr.write(
-                    f"Error when generating openapi.json file: path {k} references schema {e} which does not appear in your Profile. Consider patching this path via profile/openapi.json\n"
+                click.echo(
+                    f"Error when generating openapi.json file: path {k} references schema {e} which does not appear in your Profile. Consider patching this path via profile/openapi.json",
+                    err=True
                 )
 
     return openapi_definition
@@ -688,15 +689,15 @@ def init(title, url, description, docs_url):
     with open("profile.json", "w") as profile_file:
         profile_file.write(json.dumps(profile_meta, indent=2))
 
-    print("✓ Created profile.json based on user input")
+    click.echo("✓ Created profile.json based on user input — edit this file to maintain your profile's metadata between versions and control how schemas compile")
 
     with suppress(FileExistsError):
         os.mkdir("profile")
-        print(
+        click.echo(
             "✓ Created 'profile/' directory — put your schema patches and new schemas here."
         )
         os.mkdir("schema")
-        print(
+        click.echo(
             "✓ Created 'schema/' directory — your patched schemas for your profile will be placed here."
         )
 
@@ -708,8 +709,8 @@ def init(title, url, description, docs_url):
             f"{get_cache_directory_path_as_string()}/metadata.json", "w"
         ) as cache_metadata_file:
             cache_metadata_file.write("{}")
-        print(
-            f"✓ Created '{get_cache_directory_path_as_string()}' directory — this will keep cached local copies of the HSDS schemas to save bandwidth and stop Github rate-limiting you."
+        click.echo(
+            f"✓ Created '{get_cache_directory_path_as_string()}' directory — this will keep cached local copies of the HSDS schemas to save bandwidth and stop Github rate-limiting you. The program will attempt to refresh the cache if it detects that it is over 1 day old."
         )
 
 
@@ -778,7 +779,7 @@ def gitignore():
     """Outputs some content to STDOUT which you can append to a .gitignore file"""
 
     git_ignore = f"{get_cache_directory_path_as_string()}"
-    print(git_ignore)
+    click.echo(git_ignore)
 
 
 # ==================================
