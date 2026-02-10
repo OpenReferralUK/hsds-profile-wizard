@@ -485,24 +485,27 @@ def generate_profile_schemas(
     # In JSON Schema 2020-12, schemas are identified by their `$id` which needs to be a URL which resolves to the schema.
     # Therefore we need to override any existing $id values inherited from HSDS with one derived from the Profile's base URL
     # See https://json-schema.org/draft/2020-12/json-schema-core#name-the-id-keyword
+    #
+    # The one exception to this is "openapi.json", which does not identify itself with an $id field.
+    # See https://spec.openapis.org/oas/latest.html
+    #
+    # In fact, openapi.json needs processing separately because it's not a JSON Schema; it just happens to live next to the HSDS Schemas in the filetree and needs patching.
+    #
+    # Therefore, it's probably best to process openapi.json separately after patching, to avoid muddying up loops with conditions etc.
+
+    open_api_definition = profile_schemas.pop("openapi.json")
 
     # TODO is there a better way to do this, via map functions?
     for (
         k,
         v,
     ) in profile_schemas.items():
-        # openapi.json doesn't use an $id to identify itself
-        # See https://spec.openapis.org/oas/latest.html
-        if k != "openapi.json":
-            profile_schemas[k]["$id"] = (
-                generate_schema_id_from_schema_name_url_and_version(
-                    k, base_url, profile_version
-                )
-            )
+        profile_schemas[k]["$id"] = generate_schema_id_from_schema_name_url_and_version(
+            k, base_url, profile_version
+        )
 
-    # TODO process openapi.json here
     profile_schemas["openapi.json"] = generate_profile_openapi_with_cleaned_refs(
-        profile_schemas["openapi.json"], profile_schemas
+        open_api_definition, profile_schemas
     )
 
     return profile_schemas
