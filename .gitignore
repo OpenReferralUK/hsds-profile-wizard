@@ -1,5 +1,6 @@
 .ve
 .cache
+.hsds-profile-wizard
 profile
 schema
 profile.json

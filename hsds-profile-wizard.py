@@ -81,6 +81,17 @@ def get_openapi_url_from_base_url(base_url):
     return f"{base_url}/schema/openapi.json"
 
 
+def get_cache_directory_path_as_string():
+    """
+    This function encapsulates the string used for the cache directory's filepath, making it easier to maintain and reducing instances of hardcoded strings in the code.
+
+    Returns:
+      * string: the direcory of the cache
+    """
+
+    return ".hsds-profile-wizard"
+
+
 def get_default_hsds_schema_branch():
     """
     Queries the Github API for the HSDS Repo's information, and returns the default branch as a string
@@ -122,7 +133,7 @@ def get_cache_metadata_filepath():
     Returns the location of the cache's metadata.json file as a string
     """
 
-    return ".cache/metadata.json"
+    return f"{get_cache_directory_path_as_string()}/metadata.json"
 
 
 def get_cache_metadata():
@@ -208,7 +219,7 @@ def get_cached_schema_dir_path_from_branch(branch):
         str: the path of the directory where the cached schemas would be for the given branch
     """
 
-    return f".cache/{branch}"
+    return f"{get_cache_directory_path_as_string()}/{branch}"
 
 
 def use_cached_schemas(branch):
@@ -630,13 +641,16 @@ def init(title, url, description, docs_url):
             "✓ Created 'schema/' directory — your patched schemas for your profile will be placed here."
         )
 
-        os.mkdir(".cache")
-        with open(".cache/metadata.json", "w") as cache_metadata_file:
-            cache_metadata_file.write(
-                "{}"
-            )  # Create an empty cache file to start us off.
+    # This is treated separately from the above, because the suppress context will block a new cache being created if the exception occurs due to 'schema' or 'profile' existing.
+
+    with suppress(FileExistsError):
+        os.mkdir(get_cache_directory_path_as_string())
+        with open(
+            f"{get_cache_directory_path_as_string()}/metadata.json", "w"
+        ) as cache_metadata_file:
+            cache_metadata_file.write("{}")
         print(
-            "✓ Created '.cache/' directory — this will keep cached local copies of the HSDS schemas to save bandwidth and stopGithub rate-limiting you."
+            f"✓ Created '{get_cache_directory_path_as_string()}' directory — this will keep cached local copies of the HSDS schemas to save bandwidth and stop Github rate-limiting you."
         )
 
 
@@ -699,11 +713,12 @@ def generate(branch, url, version):
 
     write_dict_of_schemas_to_directory(compiled_schemas, "schema/compiled")
 
+
 @cli.command()
 def gitignore():
     """Outputs some content to STDOUT which you can append to a .gitignore file"""
 
-    git_ignore = ".cache"
+    git_ignore = f"{get_cache_directory_path_as_string()}"
     print(git_ignore)
 
 
