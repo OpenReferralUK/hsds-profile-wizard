@@ -1,0 +1,15 @@
+{
+  "title": "HSDS-UK-3.0",
+  "base_url": "https://openreferraluk.org/specifications",
+  "openapi_url": "https://openreferraluk.org/specifications/3.0/openapi.json",
+  "version": "3.0",
+  "branch": "3.0",
+  "compile": [
+    "service.json",
+    "organization.json",
+    "location.json",
+    "service_at_location.json"
+  ],
+  "description": "Open Referral UK Profile for Version 3",
+  "docs_url": ""
+}

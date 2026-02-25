@@ -1,10 +1,10 @@
 {
-   "properties": {
-     "organization_id": null,
-     "attributes": null
-   },
+  "properties": {
+    "organization_id": null,
+    "attributes": null
+  },
   "required": [
     "id"
   ],
-   "allOf": null
+  "allOf": null
 }

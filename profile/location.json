@@ -1,17 +1,17 @@
 {
-   "properties": {
-     "url": null,
-     "organization_id": null,
-     "alternate_name": null,
-     "transportation": null,
-	 "phones": null,
-	 "contacts":null,
-	 "schedules":null,
-	 "languages":null
-   },
+  "properties": {
+    "url": null,
+    "organization_id": null,
+    "alternate_name": null,
+    "transportation": null,
+    "phones": null,
+    "contacts": null,
+    "schedules": null,
+    "languages": null
+  },
   "required": [
     "id",
-	"location_type"
+    "location_type"
   ],
-   "allOf": null
+  "allOf": null
 }

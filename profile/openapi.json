@@ -1,169 +1,170 @@
 {
-	"openapi":"3.0.0",
+	"openapi": "3.0.0",
 	"info": {
-    "title": "Open Referral UK Profile",
-    "version": "3.0",
-    "description": "Open Referral UK Profile for Version 3" ,
-    "contact": null,
-    "summary": null,
-    "license": {
-      "name": "Creative Commons Attribution Share-Alike 4.0 license",
-      "url": "https://creativecommons.org/licenses/by/4.0/"
-    }
-  },
-  "jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
-  "paths": {
-  "/organizations": null,
-  "/organizations/{id}":null,
-  "/services": {
-      "get": {
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/search"
-          },
-          {
-            "$ref": "#/components/parameters/page"
-          },	  
-          {
-            "$ref": "#/components/parameters/per_page"
-          },
-          {
-            "$ref": "#/components/parameters/taxonomy_term_id"
-          },
-          {
-            "$ref": "#/components/parameters/taxonomy_id"
-          },
-		  {
-			"$ref": "#/components/parameters/minimum_age"
-		   },
-		  {
-			"$ref": "#/components/parameters/maximum_age"
-		  },
-		  {
-		  "$ref": "#/components/parameters/start_time"
-		  },
-		  {
-		  "$ref": "#/components/parameters/end_time"
-		  },
-		  {
-		  "$ref": "#/components/parameters/day"
-		  }
-        ]
-	}
-	},"/service_at_locations": {
-      "get": {
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/search"
-          },
-          {
-            "$ref": "#/components/parameters/page"
-          },	  
-          {
-            "$ref": "#/components/parameters/per_page"
-          },
-          {
-            "$ref": "#/components/parameters/taxonomy_term_id"
-          },
-          {
-            "$ref": "#/components/parameters/taxonomy_id"
-          },
-		  {
-			"$ref": "#/components/parameters/minimum_age"
-		   },
-		  {
-			"$ref": "#/components/parameters/maximum_age"
-		  },
-		  {
-		  "$ref": "#/components/parameters/start_time"
-		  },
-		  {
-		  "$ref": "#/components/parameters/end_time"
-		  },
-		  {
-		  "$ref": "#/components/parameters/day"
-		  },
-          {
-            "$ref": "#/components/parameters/postcode"
-          },
-          {
-            "$ref": "#/components/parameters/proximity"
-          }
-        ]
-	}
-	},    
-	"/taxonomies": {
-      "get": {
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/page"
-          },
-          {
-            "$ref": "#/components/parameters/per_page"
-          }
-        ]
-      }
-    },
-    "/taxonomy_terms": {
-      "get": {
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/page"
-          },
-          {
-            "$ref": "#/components/parameters/per_page"
-          }
-        ]
-      }
-    }
-  },
-  "components": {
-	  "parameters": {
-		"minimum_age": {
-		  "name": "minimum_age",
-		  "in": "query",
-		  "required": false,
-		  "description": "Return services with a minimum age of at least the specified value.",
-		  "schema": {
-			"type": "number"
-		  }
+		"title": "Open Referral UK Profile",
+		"version": "3.0",
+		"description": "Open Referral UK Profile for Version 3",
+		"contact": null,
+		"summary": null,
+		"license": {
+			"name": "Creative Commons Attribution Share-Alike 4.0 license",
+			"url": "https://creativecommons.org/licenses/by/4.0/"
+		}
+	},
+	"jsonSchemaDialect": "https://json-schema.org/draft/2020-12/schema",
+	"paths": {
+		"/organizations": null,
+		"/organizations/{id}": null,
+		"/services": {
+			"get": {
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/search"
+					},
+					{
+						"$ref": "#/components/parameters/page"
+					},
+					{
+						"$ref": "#/components/parameters/per_page"
+					},
+					{
+						"$ref": "#/components/parameters/taxonomy_term_id"
+					},
+					{
+						"$ref": "#/components/parameters/taxonomy_id"
+					},
+					{
+						"$ref": "#/components/parameters/minimum_age"
+					},
+					{
+						"$ref": "#/components/parameters/maximum_age"
+					},
+					{
+						"$ref": "#/components/parameters/start_time"
+					},
+					{
+						"$ref": "#/components/parameters/end_time"
+					},
+					{
+						"$ref": "#/components/parameters/day"
+					}
+				]
+			}
 		},
-		"maximum_age": {
-			"name": "maximum_age",
-			"in": "query",
-			"required": false,
-			"description": "Return services with a maximum age of at equal to or below the specified value.",
-			"schema": {
-			  "type": "number"
+		"/service_at_locations": {
+			"get": {
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/search"
+					},
+					{
+						"$ref": "#/components/parameters/page"
+					},
+					{
+						"$ref": "#/components/parameters/per_page"
+					},
+					{
+						"$ref": "#/components/parameters/taxonomy_term_id"
+					},
+					{
+						"$ref": "#/components/parameters/taxonomy_id"
+					},
+					{
+						"$ref": "#/components/parameters/minimum_age"
+					},
+					{
+						"$ref": "#/components/parameters/maximum_age"
+					},
+					{
+						"$ref": "#/components/parameters/start_time"
+					},
+					{
+						"$ref": "#/components/parameters/end_time"
+					},
+					{
+						"$ref": "#/components/parameters/day"
+					},
+					{
+						"$ref": "#/components/parameters/postcode"
+					},
+					{
+						"$ref": "#/components/parameters/proximity"
+					}
+				]
 			}
-		  },
-		"start_time": {
-			"name": "start_time",
-			"in": "query",
-			"required": false,
-			"description": "Return services with a start time of at least the specified value.",
-			"schema": {
-			  "type": "time"
+		},
+		"/taxonomies": {
+			"get": {
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/page"
+					},
+					{
+						"$ref": "#/components/parameters/per_page"
+					}
+				]
 			}
-		  },
-		"end_time": {
-			"name": "end_time",
-			"in": "query",
-			"required": false,
-			"description": "Return services with a end time of at equal to or below the specified value.",
-			"schema": {
-			  "type": "time"
+		},
+		"/taxonomy_terms": {
+			"get": {
+				"parameters": [
+					{
+						"$ref": "#/components/parameters/page"
+					},
+					{
+						"$ref": "#/components/parameters/per_page"
+					}
+				]
 			}
-		  },
-		"day": {
-			"name": "day",
-			"in": "query",
-			"required": false,
-			"description": "Return services with a day equal to the specified value.",
-			"schema": {
-			  "type": "string"
+		}
+	},
+	"components": {
+		"parameters": {
+			"minimum_age": {
+				"name": "minimum_age",
+				"in": "query",
+				"required": false,
+				"description": "Return services with a minimum age of at least the specified value.",
+				"schema": {
+					"type": "number"
+				}
+			},
+			"maximum_age": {
+				"name": "maximum_age",
+				"in": "query",
+				"required": false,
+				"description": "Return services with a maximum age of at equal to or below the specified value.",
+				"schema": {
+					"type": "number"
+				}
+			},
+			"start_time": {
+				"name": "start_time",
+				"in": "query",
+				"required": false,
+				"description": "Return services with a start time of at least the specified value.",
+				"schema": {
+					"type": "time"
+				}
+			},
+			"end_time": {
+				"name": "end_time",
+				"in": "query",
+				"required": false,
+				"description": "Return services with a end time of at equal to or below the specified value.",
+				"schema": {
+					"type": "time"
+				}
+			},
+			"day": {
+				"name": "day",
+				"in": "query",
+				"required": false,
+				"description": "Return services with a day equal to the specified value.",
+				"schema": {
+					"type": "string"
+				}
 			}
-		  }		  
-	  }
-	}  
+		}
+	}
 }

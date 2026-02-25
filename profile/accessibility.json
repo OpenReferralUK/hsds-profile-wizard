@@ -1,8 +1,8 @@
 {
   "name": "accessibility",
-  "path": "accessibility.csv",  
-   "properties": {
-     "accessibility": {
+  "path": "accessibility.csv",
+  "properties": {
+    "accessibility": {
       "name": "accessibility",
       "type": "string",
       "title": "Accessibility",
@@ -13,6 +13,6 @@
       "example": "The building is equipped with induction loops for hearing aids. Wheelchair access is possible on all levels.",
       "core": "Y"
     }
-   },
-   "allOf": null
+  },
+  "allOf": null
 }
