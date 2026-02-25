@@ -1,0 +1,18 @@
+{
+  "name": "accessibility",
+  "path": "accessibility.csv",  
+   "properties": {
+     "accessibility": {
+      "name": "accessibility",
+      "type": "string",
+      "title": "Accessibility",
+      "description": "Description of assistance or infrastructure that facilitate access to clients with disabilities.",
+      "constraints": {
+        "unique": false
+      },
+      "example": "The building is equipped with induction loops for hearing aids. Wheelchair access is possible on all levels.",
+      "core": "Y"
+    }
+   },
+   "allOf": null
+}

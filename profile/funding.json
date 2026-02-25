@@ -1,0 +1,10 @@
+{
+   "properties": {
+     "organization_id": null,
+     "attributes": null
+   },
+  "required": [
+    "id"
+  ],
+   "allOf": null
+}

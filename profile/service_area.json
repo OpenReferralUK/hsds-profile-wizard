@@ -1,0 +1,18 @@
+{
+   "properties": {
+    "service_area": {
+      "name": "service_area",
+      "type": "string",
+      "title": "Service Area",
+      "description": "A free text geographic area where a service is available.",
+      "constraints": {
+        "unique": false
+      },
+      "example": "The service is available to all residents of the MyCity area. We provide the service in our offices or via video conferencing to any who can provide evidence of their residency.",
+      "core": "Y"
+    },
+    "description":null,
+    "attributes":null
+   },
+   "allOf": null
+}

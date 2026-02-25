@@ -1,6 +1,8 @@
 .ve
-.cache
+.cache/
 .hsds-profile-wizard
-profile
-schema
-profile.json
+schema/
+.DS_Store
+.venv/
+*.pyc
+__pycache__/
