@@ -9,7 +9,7 @@
     "wkst": null,
     "byweekno": null,
     "byyearday": null,
-    "attributes": null,
+    "attributes": null
   },
   "required": [
     "id"
