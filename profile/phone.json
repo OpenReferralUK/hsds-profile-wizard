@@ -1,0 +1,16 @@
+{
+   "properties": {
+     "location_id": null,
+     "service_id": null,
+     "organization_id": null,
+     "service_at_location_id": null,
+     "extension": null,
+     "type": null,
+     "attributes": null
+   },
+  "required": [
+    "id",
+    "number"
+  ],
+   "allOf": null
+}

@@ -1,0 +1,13 @@
+{
+   "properties": {
+     "location_id": null,
+     "name": null,
+     "code": null,
+     "note": null,
+     "attributes": null
+   },
+  "required": [
+    "id"
+  ],
+   "allOf": null
+}

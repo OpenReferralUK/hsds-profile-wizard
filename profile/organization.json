@@ -1,0 +1,14 @@
+{
+   "properties": {
+     "alternate_name": null,
+     "tax_status": null,
+     "tax_id": null,
+     "year_incorporated": null,
+     "legal_status": null,
+	 "locations": null,
+	 "phones": null,
+	 "contacts": null,
+	 "funding": null
+   },
+   "allOf": null
+}

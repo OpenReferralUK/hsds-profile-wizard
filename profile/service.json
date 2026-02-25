@@ -1,0 +1,19 @@
+{
+   "properties": {
+     "program_id":null,
+     "alternate_name":null,
+     "fees_description": null,
+     "interpretation_services":null,
+     "application_process":null,
+     "wait_time":null,
+     "eligibility_description":null,
+     "licenses":null,
+	 "phones":null
+   },
+  "required": [
+    "id",
+    "name",
+    "status"
+  ],
+   "allOf": null
+}
