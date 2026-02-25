@@ -1,8 +1,8 @@
 {
-   "properties": {
-     "code": null,
-     "language":null,
-     "taxonomy_detail":null,
+  "properties": {
+    "code": null,
+    "language": null,
+    "taxonomy_detail": null,
     "term": {
       "name": "term",
       "type": "string",
@@ -13,7 +13,7 @@
       },
       "example": "name",
       "core": "Y"
-    }	
-   },
-   "allOf": null
+    }
+  },
+  "allOf": null
 }

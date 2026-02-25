@@ -1,10 +1,10 @@
 {
-   "properties": {
-     "description": null,
-     "contacts":null,
-     "phones":null,
-     "schedules":null,
-     "attributes":null
-   },
-   "allOf": null
+  "properties": {
+    "description": null,
+    "contacts": null,
+    "phones": null,
+    "schedules": null,
+    "attributes": null
+  },
+  "allOf": null
 }

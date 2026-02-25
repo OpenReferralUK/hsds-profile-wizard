@@ -1,10 +1,10 @@
 {
-   "properties": {
-     "currency": null,
-     "attributes": null
-   },
+  "properties": {
+    "currency": null,
+    "attributes": null
+  },
   "required": [
     "id"
   ],
-   "allOf": null
+  "allOf": null
 }
